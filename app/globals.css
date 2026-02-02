@@ -10,10 +10,13 @@
 html,
 body {
   height: 100%;
+  width: 100%;
+  overflow-x: hidden; /* ✅ prevents sideways drag on iOS */
 }
 
 body {
   background: #ffffff;
+  overscroll-behavior-x: none; /* ✅ prevents sideways rubber-banding */
 }
 
 /* ------------------------------------------------------------
@@ -29,12 +32,7 @@ body {
 
 /* ------------------------------------------------------------
    Reusable hero overlays: net + vignette
-   Use these as absolutely positioned layers in your hero:
-   <div className="pointer-events-none absolute inset-0 ww-net" />
-   <div className="pointer-events-none absolute inset-0 ww-vignette" />
 ------------------------------------------------------------ */
-
-/* Visible net/grid overlay (subtle but present) */
 .ww-net {
   opacity: 0.28;
   background-image:
@@ -42,12 +40,10 @@ body {
     linear-gradient(to bottom, rgba(99,102,241,0.16) 1px, transparent 1px);
   background-size: 44px 44px;
 
-  /* Concentrate visibility to one side (matches your right-side gradient cluster) */
   -webkit-mask-image: linear-gradient(to left, black 58%, transparent 90%);
   mask-image: linear-gradient(to left, black 58%, transparent 90%);
 }
 
-/* Small screens: denser and slightly more visible */
 @media (max-width: 639px) {
   .ww-net {
     opacity: 0.34;
@@ -57,7 +53,6 @@ body {
   }
 }
 
-/* Cinematic vignette (helps text + gives "film" depth) */
 .ww-vignette {
   background:
     radial-gradient(900px 520px at 50% 20%, rgba(255,255,255,0.0), rgba(255,255,255,0.75) 70%),
@@ -66,9 +61,7 @@ body {
 }
 
 /* ------------------------------------------------------------
-   Subtle animated gradient drift (safe + premium)
-   Apply to a hero overlay element:
-   <div className="pointer-events-none absolute inset-0 ww-drift" />
+   Subtle animated gradient drift
 ------------------------------------------------------------ */
 .ww-drift {
   background:
@@ -92,7 +85,30 @@ body {
 }
 
 /* ------------------------------------------------------------
-   Shadows (unchanged)
+   Footer-specific: visible net + accent glows
+   - net is stronger on one side and fades out
+------------------------------------------------------------ */
+.ww-footer-net {
+  opacity: 0.22;
+  background-image:
+    linear-gradient(to right, rgba(16,185,129,0.22) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(16,185,129,0.22) 1px, transparent 1px);
+  background-size: 44px 44px;
+  -webkit-mask-image: linear-gradient(to left, black 52%, transparent 92%);
+  mask-image: linear-gradient(to left, black 52%, transparent 92%);
+}
+
+@media (max-width: 639px) {
+  .ww-footer-net {
+    opacity: 0.28;
+    background-size: 36px 36px;
+    -webkit-mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
+    mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
+  }
+}
+
+/* ------------------------------------------------------------
+   Shadows
 ------------------------------------------------------------ */
 .shadow-soft {
   box-shadow:
@@ -106,31 +122,11 @@ body {
     0 18px 50px rgba(15,23,42,0.14);
 }
 
-/* nicer selection */
+/* selection */
 ::selection {
   background: rgba(59,130,246,0.18);
 }
 
 /* scrollbar hide helper */
-.scrollbar-none::-webkit-scrollbar {
-  display: none;
-}
-.scrollbar-none {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-/* ------------------------------------------------------------
-   Keyframes used in earlier components (HorizontalReel, etc.)
------------------------------------------------------------- */
-@keyframes floaty {
-  0% { transform: translate3d(0, 0, 0); }
-  50% { transform: translate3d(0, -6px, 0); }
-  100% { transform: translate3d(0, 0, 0); }
-}
-
-@keyframes shimmer {
-  0% { transform: translateX(-20%); opacity: 0; }
-  20% { opacity: 1; }
-  100% { transform: translateX(120%); opacity: 0; }
-}
+.scrollbar-none::-webkit-scrollbar { display: none; }
+.scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }

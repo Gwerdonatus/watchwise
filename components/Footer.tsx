@@ -11,11 +11,24 @@ export function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="relative border-t border-slate-200/70 bg-white">
-      {/* soft gradient glow */}
+    <footer className="relative border-t border-slate-200/70 bg-white overflow-hidden">
+      {/* Background layers: glow + net + top highlight */}
       <div className="pointer-events-none absolute inset-0" aria-hidden>
-        <div className="absolute -top-24 right-[8%] h-[420px] w-[420px] rounded-full bg-emerald-400/10 blur-3xl" />
-        <div className="absolute -top-16 left-[10%] h-[380px] w-[380px] rounded-full bg-sky-400/10 blur-3xl" />
+        {/* Base wash (keeps it premium and clean) */}
+        <div className="absolute inset-0 bg-gradient-to-b from-white via-white to-slate-50/60" />
+
+        {/* Accent glows (small touch, matches header dots) */}
+        <div className="absolute -top-24 right-[-10%] h-[520px] w-[520px] rounded-full bg-emerald-400/14 blur-3xl" />
+        <div className="absolute top-10 right-[22%] h-[360px] w-[360px] rounded-full bg-amber-300/10 blur-3xl" />
+        <div className="absolute -top-10 left-[6%] h-[360px] w-[360px] rounded-full bg-rose-400/10 blur-3xl" />
+
+        {/* Soft sheet gradient on the "net side" */}
+        <div className="absolute inset-y-0 right-0 w-[58%] bg-gradient-to-l from-emerald-200/20 via-emerald-100/8 to-transparent" />
+
+        {/* Visible net (stronger on right, fades left) */}
+        <div className="absolute inset-0 ww-footer-net" />
+
+        {/* top hairline */}
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-slate-200/80 to-transparent" />
       </div>
 
@@ -23,7 +36,19 @@ export function Footer() {
         <div className="grid gap-10 md:grid-cols-3 md:items-start">
           {/* Brand */}
           <div className="min-w-0">
-            <div className="text-sm font-semibold tracking-tight text-slate-900">Watchwise</div>
+            <div className="flex items-center gap-2">
+              {/* Mini traffic dots to match header branding */}
+              <span className="inline-flex items-center gap-1.5" aria-hidden="true">
+                <span className="h-2 w-2 rounded-full bg-rose-500/80" />
+                <span className="h-2 w-2 rounded-full bg-amber-400/80" />
+                <span className="h-2 w-2 rounded-full bg-emerald-500/80" />
+              </span>
+
+              <div className="text-sm font-semibold tracking-tight text-slate-900">
+                Watchwise
+              </div>
+            </div>
+
             <p className="mt-2 max-w-sm text-xs leading-relaxed text-slate-600">
               Movie discovery with vibe tuning and explainable recommendations—so you can pick the next film faster and with confidence.
             </p>

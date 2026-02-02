@@ -11,8 +11,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body className="ww-bg text-slate-900 antialiased">
+    <html lang="en" className="overflow-x-hidden">
+      <body className="ww-bg text-slate-900 antialiased overflow-x-hidden">
         <RouteChangeCleanup />
         <Nav />
 

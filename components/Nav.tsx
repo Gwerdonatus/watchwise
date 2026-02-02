@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { Container } from "@/components/ui/Container";
@@ -12,19 +12,31 @@ const LINKS = [
   { href: "/credits", label: "Credits" },
 ];
 
-// Timing controls (ms) — tweak if you want faster/slower
-const DOT_STEP = 140; // delay between dot lights
-const TYPE_SPEED = 38; // ms per character
+// -----------------------------
+// CINEMATIC TIMING (ms)
+// -----------------------------
+const RISE_ON = 950;     // glow ramps up (~1s)
+const FALL_OFF = 650;   // dim back down
+const BETWEEN_PULSES = 320;
+const BETWEEN_DOTS = 650;
+
+const TYPE_TOTAL = 3000;  // Watchwise types in over ~3s
+const START_DELAY = 700;  // wait for page to settle before starting
 
 export function Nav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
-  // Animation state
   const FULL = "Watchwise";
-  const [dotIndex, setDotIndex] = useState(-1); // -1 none, 0 red, 1 yellow, 2 green
+
+  const [phase, setPhase] = useState<"idle" | "dots" | "typing" | "done">("idle");
+  const [activeDot, setActiveDot] = useState<number | null>(null);
+  const [locked, setLocked] = useState<[boolean, boolean, boolean]>([false, false, false]);
   const [typed, setTyped] = useState("");
+
+  // run id to cancel any in-flight sequence (prevents stacking)
+  const runIdRef = useRef(0);
 
   // Close mobile menu on navigation
   useEffect(() => setOpen(false), [pathname]);
@@ -39,96 +51,176 @@ export function Nav() {
 
   const isActive = (href: string) => pathname === href;
 
-  // Run the "lights then type" animation on mount
-  useEffect(() => {
-    let alive = true;
-
-    // Reset (important in dev / strict mode)
-    setDotIndex(-1);
-    setTyped("");
-
-    const t0 = window.setTimeout(() => alive && setDotIndex(0), 120);
-    const t1 = window.setTimeout(() => alive && setDotIndex(1), 120 + DOT_STEP);
-    const t2 = window.setTimeout(() => alive && setDotIndex(2), 120 + DOT_STEP * 2);
-
-    const startTypingAt = 120 + DOT_STEP * 2 + 140;
-    let i = 0;
-
-    const type = () => {
-      if (!alive) return;
-      i += 1;
-      setTyped(FULL.slice(0, i));
-      if (i < FULL.length) {
-        window.setTimeout(type, TYPE_SPEED);
-      }
-    };
-
-    const tType = window.setTimeout(type, startTypingAt);
-
-    return () => {
-      alive = false;
-      window.clearTimeout(t0);
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
-      window.clearTimeout(tType);
-    };
-  }, []);
-
-  // Dots spec: stop (red), ready (yellow), go (green)
   const dots = useMemo(
     () => [
-      { base: "bg-red-400", on: "bg-red-500 shadow-[0_0_0_3px_rgba(239,68,68,0.14)]" },
-      { base: "bg-amber-300", on: "bg-amber-400 shadow-[0_0_0_3px_rgba(251,191,36,0.14)]" },
-      { base: "bg-emerald-400", on: "bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.16)]" },
+      {
+        base: "bg-rose-400/25",
+        glow: "bg-rose-500",
+        glowShadow: "0 0 0 5px rgba(244,63,94,0.14), 0 0 22px rgba(244,63,94,0.25)",
+      },
+      {
+        base: "bg-amber-300/25",
+        glow: "bg-amber-400",
+        glowShadow: "0 0 0 5px rgba(251,191,36,0.14), 0 0 22px rgba(251,191,36,0.22)",
+      },
+      {
+        base: "bg-emerald-400/25",
+        glow: "bg-emerald-500",
+        glowShadow: "0 0 0 5px rgba(16,185,129,0.14), 0 0 22px rgba(16,185,129,0.22)",
+      },
     ],
     []
   );
+
+  const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+  // Dot motion variants: dark → glow “rise”
+  const dotVariants = {
+    idle: {
+      opacity: 0.55,
+      scale: 1,
+      boxShadow: "0 0 0 0 rgba(0,0,0,0)",
+      transition: { duration: 0.55, ease: "easeOut" },
+    },
+    rising: (shadow: string) => ({
+      opacity: 1,
+      scale: 1.12,
+      boxShadow: shadow,
+      transition: { duration: RISE_ON / 1000, ease: [0.16, 1, 0.3, 1] },
+    }),
+    locked: (shadow: string) => ({
+      opacity: 1,
+      scale: 1.08,
+      boxShadow: shadow,
+      transition: { duration: 0.5, ease: "easeOut" },
+    }),
+  };
+
+  async function runSequence(myRunId: number) {
+    // Reset to initial: dots visible/dark, no name
+    setPhase("idle");
+    setActiveDot(null);
+    setLocked([false, false, false]);
+    setTyped("");
+
+    await sleep(START_DELAY);
+    if (runIdRef.current !== myRunId) return;
+
+    setPhase("dots");
+
+    for (let i = 0; i < 3; i++) {
+      // Pulse 1: rise → fall
+      setActiveDot(i);
+      await sleep(RISE_ON);
+      if (runIdRef.current !== myRunId) return;
+
+      setActiveDot(null);
+      await sleep(FALL_OFF);
+      if (runIdRef.current !== myRunId) return;
+
+      await sleep(BETWEEN_PULSES);
+      if (runIdRef.current !== myRunId) return;
+
+      // Pulse 2: rise → lock ON
+      setActiveDot(i);
+      await sleep(RISE_ON);
+      if (runIdRef.current !== myRunId) return;
+
+      setActiveDot(null);
+      setLocked((prev) => {
+        const next: [boolean, boolean, boolean] = [...prev] as any;
+        next[i] = true;
+        return next;
+      });
+
+      await sleep(BETWEEN_DOTS);
+      if (runIdRef.current !== myRunId) return;
+    }
+
+    // Type name only after all lights are locked ON
+    setPhase("typing");
+
+    const perChar = Math.max(90, Math.floor(TYPE_TOTAL / FULL.length));
+    for (let c = 1; c <= FULL.length; c++) {
+      if (runIdRef.current !== myRunId) return;
+      setTyped(FULL.slice(0, c));
+      await sleep(perChar);
+    }
+
+    setPhase("done");
+  }
+
+  // ✅ Replay whenever user returns to homepage
+  useEffect(() => {
+    if (pathname !== "/") return;
+
+    // increment run id to cancel any previous animation
+    runIdRef.current += 1;
+    const myRunId = runIdRef.current;
+
+    runSequence(myRunId);
+
+    // cleanup: cancel if route changes mid-animation
+    return () => {
+      // bumping runId cancels the running async sequence
+      runIdRef.current += 1;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   return (
     <header
       className={[
         "fixed top-0 left-0 right-0 z-50",
         "border-b border-slate-200/70",
-        // Mobile: opaque. Desktop: glass.
         "bg-white sm:supports-[backdrop-filter]:bg-white/80 sm:backdrop-blur-xl",
-        scrolled ? "shadow-sm sm:bg-white/92" : "",
+        scrolled ? "sm:bg-white/92" : "",
       ].join(" ")}
     >
       <Container className="flex h-14 items-center justify-between">
-        {/* Brand: traffic-light dots + typewriter */}
         <Link
           href="/"
           className="inline-flex items-center gap-2 font-semibold tracking-tight text-slate-900"
           aria-label="Watchwise Home"
         >
-          {/* dots (now visible on mobile too) */}
+          {/* Dots: always visible (dark by default), then rise/lock */}
           <span className="inline-flex items-center gap-1.5">
             {dots.map((d, idx) => {
-              const lit = idx <= dotIndex;
+              const isRising = activeDot === idx;
+              const isLocked = locked[idx];
+
               return (
-                <span
+                <motion.span
                   key={idx}
-                  className={[
-                    "h-2 w-2 rounded-full transition-all duration-200",
-                    lit ? d.on : d.base,
-                    lit ? "opacity-100" : "opacity-45",
-                  ].join(" ")}
+                  custom={d.glowShadow}
+                  initial={false}
+                  animate={isLocked ? "locked" : isRising ? "rising" : "idle"}
+                  variants={dotVariants}
+                  className={["h-2.5 w-2.5 rounded-full", isLocked || isRising ? d.glow : d.base].join(" ")}
                   aria-hidden="true"
                 />
               );
             })}
           </span>
 
-          {/* typing text */}
-          <span className="relative">
-            <span className="align-middle">{typed}</span>
+          {/* Name: hidden until typing begins */}
+          <span className="relative min-w-[9ch]">
+            <span
+              className={
+                phase === "idle" || phase === "dots"
+                  ? "opacity-0"
+                  : "opacity-100 transition-opacity duration-500"
+              }
+            >
+              {typed}
+            </span>
 
             {/* caret while typing */}
             <span
               aria-hidden="true"
               className={[
                 "ml-0.5 inline-block h-[1.05em] w-px bg-slate-900/60 align-middle",
-                typed.length < FULL.length ? "opacity-100 animate-pulse" : "opacity-0",
+                phase === "typing" ? "opacity-100 animate-pulse" : "opacity-0",
               ].join(" ")}
             />
           </span>
@@ -155,7 +247,7 @@ export function Nav() {
           })}
         </nav>
 
-        {/* Mobile menu button */}
+        {/* Mobile menu */}
         <button
           onClick={() => setOpen(true)}
           className="sm:hidden inline-flex items-center justify-center rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 bg-white hover:bg-slate-50 transition"
@@ -165,7 +257,7 @@ export function Nav() {
         </button>
       </Container>
 
-      {/* Mobile drawer (unchanged) */}
+      {/* Mobile drawer */}
       <AnimatePresence>
         {open ? (
           <>
